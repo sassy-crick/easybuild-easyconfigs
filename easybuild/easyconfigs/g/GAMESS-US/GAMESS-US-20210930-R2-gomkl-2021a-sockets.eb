@@ -1,0 +1,54 @@
+# This file is an EasyBuild reciPY as per https://github.com/easybuilders/easybuild
+#
+# Copyright:: Copyright 2012-2017 University of Luxembourg / LCSB, Cyprus Institute / CaSToRC,
+#                                 Ghent University / The Francis Crick Institute
+#
+# Authors::
+# * Kenneth Hoste <kenneth.hoste@ugent.be>
+# * Ward Poelmans <wpoely86@gmail.com>
+# * Oliver Stueker <oliver.stueker@ace-net.ca>
+# Updated to version 20210930-R2: J. Sassmannshausen (Imperial College London/UK)
+# License::   MIT/GPL
+##
+name = 'GAMESS-US'
+version = '20210930-R2'
+versionsuffix = '-sockets'
+
+homepage = 'http://www.msg.chem.iastate.edu/gamess/index.html'
+description = """ The General Atomic and Molecular Electronic Structure System (GAMESS)
+ is a general ab initio quantum chemistry package. """
+
+toolchain = {'name': 'gomkl', 'version': '2021a'}
+toolchainopts = {'usempi': False}
+
+download_instructions = """
+Manually download via http://www.msg.chem.iastate.edu/gamess/download.html (requires registration)
+and rename gamess-current.tar.gz by changing 'current' to the proper version"""
+
+sources = ['gamess-%(version)s.tar.gz']
+checksums = [
+    '60972b1da1e9d2d8f5953222c564a74546b70b9fa8775f8217449ce09e3d0299',  # gamess-20210930-R2.tar.gz
+    'a9d20bb972ba36abd0fd3b67692d2203ca055c7d06ed4f6bad21f6528395ecc7',  # GAMESS-US-20210930-R2-compall.patch
+    '4f3b50188914275a3c83b8ff010ef7d53dbc8c4422e7ee173f5b9add27ed44f2',  # GAMESS-US-20210930-R2-lked.patch
+    '6fac3cdaceea31e4ad1f7c7ff7aff18974fe6953d3e605a107c96a967c211553',  # GAMESS-US_rungms-slurm.patch
+]
+
+patches = [
+    '%(name)s-%(version)s-compall.patch',
+    '%(name)s-%(version)s-lked.patch',
+    '%(name)s_rungms-slurm.patch',
+]
+
+# increase these numbers if your system is bigger in terms of cores-per-node or number of nodes
+# it's OK if these values are larger than what your system provides
+maxcpus = '256'
+maxnodes = '2048'
+
+# Build GAMESS for using TCP/IP sockets instead of MPI:
+ddi_comm = 'sockets'
+
+# Build GAMESS with OpenMP enabled:
+# This does not seem to work well in this version
+omp = 'false'
+
+moduleclass = 'chem'

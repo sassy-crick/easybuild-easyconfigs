@@ -1,0 +1,16 @@
+Fix the missing IF statement
+Author: J. Sassmannshausen
+diff --git a/20210930-R2-gomkl-2021a-sockets.orig/compall b/20210930-R2-gomkl-2021a-sockets/compall
+index 352669c..2d0dc33 100755
+--- a/20210930-R2-gomkl-2021a-sockets.orig/compall
++++ b/20210930-R2-gomkl-2021a-sockets/compall
+@@ -715,7 +715,7 @@ endif
+ #      If you do not want VB2000, set VB2000 to false and re-compile.
+ #
+ set VB2000=true
+-($GMS_PHI != none)    set VB2000=false
++if ($GMS_PHI != none)    set VB2000=false
+ if ($GMS_OPENMP == true) set VB2000=false
+ #
+ #
+

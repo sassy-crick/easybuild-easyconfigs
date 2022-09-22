@@ -1,0 +1,302 @@
+Fix several issues with the like, mainly typos, so linking and dynamic libs are working
+NOTE: This is a bit of a hack, only for THIS version and GFORTRAN!
+Author: J. Sassmannshausen
+
+diff --git a/gamess.orig/lked b/gamess/lked
+index 950dea8..1e90453 100755
+--- a/gamess.orig/lked
++++ b/gamess/lked
+@@ -73,12 +73,10 @@ else
+    set VB2000=true
+ endif
+ #
++set VB2000=false
++#
+ #   As of 2018 R3 VB2000 is no longer compiled by default.
+-#   As of 2021 R2 VB2000 is compiled by default again.
+ #
+-set VB2000=true
+-if ($GMS_TARGET == ibm64) set VB2000=false
+-if ($GMS_TARGET =~ hpe-cray-*) set VB2000=false
+ set XMVB=false
+ #
+ #   4. optional Nuclear-Electronic Orbital method, using NEO code
+@@ -106,8 +104,7 @@ set NBOLIB="/u1/mike/nbo6/bin/gmsnbo.i8.a"
+ #   7. optional MPQC interface
+ #
+ set MPQC=false
+-#   8. optional interface to VeraChem's VM2 package                                       
+-#                                                                                            
++#
+ #   choose compiler and math library options for each system
+ #   ========================================================
+ #   these consist of
+@@ -141,32 +138,32 @@ if ($TARGET =~ hpe-cray-*) then
+    set LDR = $GMS_FORTRAN
+ 
+    if ( $?CRAY_FTN_VERSION ) then
+-      set GMS_HPE_CRAY_COMP = cray
++      set GMS_EX_COMP = cray
+    endif
+ 
+    if ( $?INTEL_VERSION ) then
+-      set GMS_HPE_CRAY_COMP = intel
++      set GMS_EX_COMP = intel
+       if ( $?PE_ENV ) then
+          if ( $PE_ENV != "INTEL") set LDR = ifort
+       endif
+    endif
+ 
+    if ( $?GNU_VERSION ) then
+-      set GMS_HPE_CRAY_COMP = gnu
++      set GMS_EX_COMP = gnu
+       if ( $?PE_ENV ) then
+          if ( $PE_ENV != "GNU") set LDR = gfortran
+       endif
+    endif
+ 
+    if ( $?NVIDIA_VERSION ) then
+-      set GMS_HPE_CRAY_COMP = nvidia
++      set GMS_EX_COMP = nvidia
+       if ( $?PE_ENV ) then
+          if ( $PE_ENV != "NVIDIA") set LDR = nvfortran
+       endif
+    endif
+ 
+    if ( $?AOCC_VERSION ) then
+-      set GMS_HPE_CRAY_COMP = aocc
++      set GMS_EX_COMP = aocc
+       if ( $?PE_ENV ) then
+          if ( $PE_ENV != "AOCC") set LD = flang
+       endif
+@@ -177,9 +174,9 @@ if ($TARGET =~ hpe-cray-*) then
+    # typically available when a PrgEnv is loaded. However, $CPU seems
+    # to always be avilable.
+    if  ( $?CRAY_CPU_TARGET ) then
+-      set GMS_HPE_CRAY_ARCH = $CRAY_CPU_TARGET
++      set GMS_EX_ARCH = $CRAY_CPU_TARGET
+    else
+-      set GMS_HPE_CRAY_ARCH = $CPU
++      set GMS_EX_ARCH = $CPU
+    endif
+ 
+    # Set your LDR flags here.
+@@ -188,8 +185,7 @@ if ($TARGET =~ hpe-cray-*) then
+    if ($GMS_OPENMP == true) set LDOPTS="$LDOPTS -lcraymp"
+ 
+    # Placeholder in case we need to handle things differently based on the compiler
+-   switch ($GMS_HPE_CRAY_COMP)
+-      case gnu:
++   switch ($GMS_EX_COMP)
+       case intel:
+       case cray:
+       default:
+@@ -197,7 +193,7 @@ if ($TARGET =~ hpe-cray-*) then
+    endsw
+ 
+    # Placeholder in case we need to handle things differently based on the CPU architecture
+-   switch ($GMS_HPE_CRAY_ARCH)
++   switch ($GMS_EX_ARCH)
+       case x86-rome:
+       case x86_64:
+       default:
+@@ -206,12 +202,12 @@ if ($TARGET =~ hpe-cray-*) then
+    endsw
+ 
+    # Linking Cray's math library
+-   set MATHLIBS="-L$GMS_MATHLIB_PATH/lib -lsci_$GMS_HPE_CRAY_COMP"
++   set MATHLIBS="-L$GMS_MATHLIB_PATH/lib -lsci_cray"
+ 
+    # Linking message passing libraries
+    if ( $?CRAY_MPICH_VERSION ) then
+       echo "Linking Cray MPICH libraries"
+-      set MATHLIBS="$MATHLIBS -lsci_${GMS_HPE_CRAY_COMP}_mpi"
++      set MATHLIBS="$MATHLIBS -lsci_cray_mpi"
+       if ( "$CRAY_MPICH_PREFIX" =~ "$CRAY_MPICH_BASEDIR/aocc"*   ) set MPILIBS="-L$CRAY_MPICH_PREFIX/lib -lmpi"
+       if ( "$CRAY_MPICH_PREFIX" =~ "$CRAY_MPICH_BASEDIR/nvidia"* ) set MPILIBS="-L$CRAY_MPICH_PREFIX/lib -lmpi"
+       if ( "$CRAY_MPICH_PREFIX" =~ "$CRAY_MPICH_BASEDIR/gnu"*    ) set MPILIBS="-L$CRAY_MPICH_PREFIX/lib -lmpi"
+@@ -332,7 +328,7 @@ if ($TARGET == ibm64) then
+       if ($GMS_OPENMP == true) then
+          set LDOPTS="$LDOPTS -qsmp=omp"
+       endif
+-   else if (($GMS_FORTRAN == nvfortran) || ($GMS_FORTRAN == pgfortran) || ($GMS_FORTRAN == pgf77)) then
++   else if (($GMS_FORTRAN == pgfortran) || ($GMS_FORTRAN == pgf77)) then
+       set LDR="$GMS_FORTRAN"
+       set LDOPTS='-g77libs'
+       set FORTLIBS=' '
+@@ -371,7 +367,7 @@ if ($TARGET == linux32) then
+    switch ($GMS_FORTRAN)
+       case gfortran:
+          set LDR='gfortran'
+-         set LDOPTS='-m32 '
++         set LDOPTS=' '
+          set FORTLIBS=' '
+          breaksw
+       case ifort:
+@@ -595,15 +591,12 @@ if ($TARGET == linux64) then
+          set FORTLIBS=' '
+          if ($GMS_OPENMP == true)    set LDOPTS="$LDOPTS -fopenmp"
+          breaksw
+-      case oneapi-ifort:
+-      case oneapi-ifx:
+       case ifort:
+          if ($GMS_DDI_COMM != sockets) then
+             if ($GMS_MPI_LIB == impi) then
+                set LDR='mpiifort'
+             else
+                set LDR='ifort'
+-               if ($GMS_FORTRAN == oneapi-ifx) set LDR='ifx'
+             endif
+          else
+              set LDR='ifort'
+@@ -625,11 +618,6 @@ if ($TARGET == linux64) then
+             endif
+          endif
+          breaksw
+-      case nvfortran:
+-         set LDR="$GMS_FORTRAN"
+-         set LDOPTS="-i8 "
+-         set FORTLIBS=' '
+-         breaksw
+       case pgfortran:
+       case pgf77:
+          set LDR="$GMS_FORTRAN"
+@@ -706,8 +694,7 @@ if ($TARGET == linux64) then
+                if (($GMS_FORTRAN == gfortran) || ($GMS_FORTRAN == aocc)) set iflib=gf
+                if ($CCHEM == false) then
+                   set MATHLIBS="-L$mpath -lmkl_${iflib}_ilp64 -lmkl_sequential -lmkl_core"
+-                  if ($GMS_VM2 == true ) set MATHLIBS=" $MATHLIBS -lmpi_ilp64 -lpthread -lm -ilp64"
+-                  if (($GMS_FORTRAN == ifort)||$GMS_FORTRAN =~ oneapi-*)) then
++                  if ($GMS_FORTRAN == ifort) then
+                      if ($GMS_PHI != none) then
+                         # not necessarily right thing to do
+                         #                set MATHLIBS="-mkl"
+@@ -729,7 +716,6 @@ if ($TARGET == linux64) then
+                   #  LIBCCHEM prefers to use threading
+                   #  LIBCCHEM needs to see ifort's iomp5 library for some reason.
+                   switch ($GMS_FORTRAN)
+-                     case oneapi-ifort:
+                      case ifort:
+                         set MATHLIBS="-L$mpath -lmkl_${iflib}_ilp64 -lmkl_${iflib}_thread -lmkl_core -liomp5"
+                         breaksw
+@@ -737,7 +723,6 @@ if ($TARGET == linux64) then
+                      case gfortran:
+                         set MATHLIBS="-L$mpath -lmkl_${iflib}_ilp64 -lmkl_gnu_thread -lmkl_core"
+                         breaksw
+-                     case nvfortran:
+                      case pgfortran:
+                      case pg77:
+                         set MATHLIBS="-L$mpath -lmkl_${iflib}_ilp64 -lmkl_core -lmkl_gnu_thread -pgf90libs -lpgf90rtl -ldl -lpthread -lm"
+@@ -786,7 +771,7 @@ if ($TARGET == linux64) then
+          endif
+          if ($CCHEM == true) then
+             set MATHLIBS="-L$GMS_MATHLIB_PATH/lib -Wl,--start-group -lf77blas -latlas -lcblas -llapack -Wl,--end-group"
+-            if (($GMS_FORTRAN == nvfortran) || ($GMS_FORTRAN == pgfortran) || ($GMS_FORTRAN == pgf77)) then
++            if (($GMS_FORTRAN == pgfortran) || ($GMS_FORTRAN == pgf77)) then
+                set MATHLIBS="$MATHLIBS"
+             endif
+          endif
+@@ -826,40 +811,8 @@ if ($TARGET == linux64) then
+ 
+       case openblas:
+          set MATHLIBS=""
+-         if ($CCHEM == false) then
+-            if (-e $GMS_MATHLIB_PATH/libopenblas64.a) then
+-               set openblaslib=$GMS_MATHLIB_PATH/libopenblas64.a
+-            else if (-e $GMS_MATHLIB_PATH/libopenblas.a) then
+-               set openblaslib=$GMS_MATHLIB_PATH/libopenblas.a
+-            else
+-               echo "The directory $GMS_MATHLIB_PATH does not contain either libopenblas64.a or libopenblas.a" >> /dev/stderr
+-               exit 4
+-            endif
+-            switch ($GMS_FORTRAN)
+-               case gfortran:
+-                  echo " "
+-                  echo "Checking whether $openblaslib uses 64-bit integers."
+-                  echo " "
+-
+-                  set echo
+-                  $GMS_FORTRAN -fdefault-integer-8 -finit-integer=-9223372036854775808 -fopenmp $GMS_PATH/tools/test_dgesv.f90 $openblaslib -o $GMS_BUILD_DIR/test_dgesv
+-                  $GMS_BUILD_DIR/test_dgesv
+-                  set rc=$status
+-                  unset echo
+-
+-                  if ($rc != 0) then
+-                     echo "Could not verify that $openblaslib uses 64-bit integers." >> /dev/stderr
+-                     exit 4
+-                  endif
+-
+-                  rm $GMS_BUILD_DIR/test_dgesv
+-                  unset rc
+-                  breaksw
+-               default:
+-                  breaksw
+-            endsw
+-            set MATHLIBS="${MATHLIBS} $openblaslib"
+-            unset openblaslib
++         if (($CCHEM == false) && (-e $GMS_MATHLIB_PATH/libopenblas.a)) then
++            set MATHLIBS="${MATHLIBS} $GMS_MATHLIB_PATH/libopenblas.a"
+          else
+             set MATHLIBS="${MATHLIBS} -L$GMS_MATHLIB_PATH -lopenblas"
+          endif
+@@ -1458,8 +1411,6 @@ echo $STANDARD_GAMESS_OBJ4
+ echo $OPENMP_GAMESS_OBJ
+ echo $LIBXC
+ echo $LIBXC_FLAGS
+-echo $MDI
+-echo $MDI_FLAGS
+ #
+ echo " "
+ echo "Choices for some optional plug-in codes are"
+@@ -1477,8 +1428,7 @@ endif
+ #   VB is turned off with vbdum.o dummy substitute in GAMESS distribution.
+ if (($VB2000 == true) || ($XMVB == true)) then
+    if ($VB2000 == true) then
+-      # vb2c.o is new from VB2000 3.0
+-      set VBOBJ='vb2000.o vb2gms.o vb2c.o mod_vb2000.o'
++      set VBOBJ='vb2000.o vb2gms.o'
+       echo "   Valence Bond program VB2000 object files are $VBOBJ"
+    endif
+    if ($XMVB == true) then
+@@ -1503,11 +1453,14 @@ else
+    set NEOOBJ='neostb.o'
+    echo "   Nuclear Electron Orbital code skipped, using dummy file $NEOOBJ"
+ endif
++#
+ #   Writing out numpy arrays
+ set NPY_OBJ=''
+ if ($?NPY) then
+    if ($NPY == true) set NPY_OBJ='npy.o endian_swap.o'
+ endif
++
++
+ #
+ #    CUDA (et cetera) libraries may require two edits:
+ #       path for CUDA to its two libraries.
+@@ -1665,7 +1618,7 @@ endif
+ chdir $GMS_BUILD_DIR/object
+ #
+ set echo
+-$LDR  $EXTRA_LINK_FLAGS:q -o $GMS_BUILD_DIR/$EXE.$VERNO.x $LDOPTS \
++$LDR  $EXTRA_LINK_FLAGS -o $GMS_BUILD_DIR/$EXE.$VERNO.x $LDOPTS \
+       $GMS_DEBUG_LINK_FLAGS \
+       -I$GMS_BUILD_DIR/object \
+       gamess.o unport.o util.o $BLAS $LAPACK \
+@@ -1674,7 +1627,6 @@ $LDR  $EXTRA_LINK_FLAGS:q -o $GMS_BUILD_DIR/$EXE.$VERNO.x $LDOPTS \
+       $STANDARD_GAMESS_OBJ3 \
+       $STANDARD_GAMESS_OBJ4 \
+       $LIBXC \
+-      $MDI \
+       $QMMMOBJ $VBOBJ $NEOOBJ $NBOOBJ \
+       $NPY_OBJ $VM2OBJ \
+       $GMS_EXTRA_OBJS \
+@@ -1682,8 +1634,7 @@ $LDR  $EXTRA_LINK_FLAGS:q -o $GMS_BUILD_DIR/$EXE.$VERNO.x $LDOPTS \
+       $OPENMP_GAMESS_OBJ \
+       $MPQCOBJ $MPQCLIBS $LIBINT \
+       $LIBRARIES $MATHLIBS $MSG_LIBRARIES \
+-      $LIBXC_FLAGS \
+-      $MDI_FLAGS
++      $LIBXC_FLAGS $MDI
+ #
+ set rc=$status
+ #
