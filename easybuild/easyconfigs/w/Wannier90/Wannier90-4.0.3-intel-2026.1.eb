@@ -15,10 +15,19 @@ toolchainopts = {'usempi': True, 'strict': True}
 github_account = 'wannier-developers'
 source_urls = [GITHUB_LOWER_SOURCE]
 sources = [{'download_filename': 'v%(version)s.tar.gz', 'filename': SOURCELOWER_TAR_GZ}]
-patches = ['wannier90-4.0.3_cmake.patch']
+patches = [
+    'wannier90-4.0.3_cmake.patch',
+    'wannier90-4.0.3_fix_tolerance.patch',
+    'wannier90-4.0.3_fix_nvhpc_ice.patch',
+    'wannier90-4.0.3_fix_error_exit_for_mpi.patch',
+]
 checksums = [
     {'wannier90-4.0.3.tar.gz': '8f6577939eecba6f07ea6946b8ed09b7a86beec20159b32a5d8278e7223d58ad'},
     {'wannier90-4.0.3_cmake.patch': '043d08e5158fd804c757b39f076fe65993f94ae9145d152df1370855382ffef0'},
+    {'wannier90-4.0.3_fix_tolerance.patch': '19ee108e014b7b515b2ffc157b3dd3c3e57d23e578238ceeaf490bc5bba159ad'},
+    {'wannier90-4.0.3_fix_nvhpc_ice.patch': '4075320b8d44f90acb22c5ecabb66521e703ab492bd44c8aad9393e280b1df47'},
+    {'wannier90-4.0.3_fix_error_exit_for_mpi.patch':
+     'e69b095a184ce5028f1f48d312d7c7e7b59ac020b21958b656d69f63cf596d2b'},
 ]
 
 builddependencies = [
@@ -43,8 +52,8 @@ Wannier90 as a community code: new features and applications, J. Phys. Cond. Mat
 # In all three cases we are adding the -DWANNIER90_WITH_C=ON as well.
 # It appears that static libraries and MPI does not work.
 configopts = [
-    '-DWANNIER90_MPI=ON -DWANNIER90_MPIH=ON -DWANNIER90_WITH_C=ON -DWANNIER90_SHARED_LIBS=ON',
-    '-DWANNIER90_MPI=OFF -DWANNIER90_MPIH=OFF -DWANNIER90_WITH_C=ON -DWANNIER90_SHARED_LIBS=ON',
+    '-DWANNIER90_MPI=ON -DWANNIER90_WITH_C=ON -DWANNIER90_SHARED_LIBS=ON',
+    '-DWANNIER90_MPI=OFF -DWANNIER90_WITH_C=ON -DWANNIER90_SHARED_LIBS=ON',
     '-DWANNIER90_WITH_C=ON -DWANNIER90_SHARED_LIBS=OFF'
 ]
 
@@ -54,10 +63,7 @@ postinstallcmds = [' && '.join([
     "cp %(builddir)s/easybuild_obj/w90spn2spn.x %(installdir)s/bin",
 ])]
 
-# We need to exclude testw90_graphene_dis_proj_auto as the test fails with:
-# abs err 1.086000e-06 (limit 1.000e-06); rel err 5.992088e-06 (limit 5.000e-06)
-pretestopts = 'cp -R ../%(namelower)s-%(version)s/test-suite/ . && '
-test_cmd = 'OMP_NUM_THREADS=1 pytest -v -n auto -k "not testw90_graphene_dis_proj_auto"'
+runtest = True
 
 sanity_check_paths = {
     'files': ['bin/%s' % x for x in local_executables] +

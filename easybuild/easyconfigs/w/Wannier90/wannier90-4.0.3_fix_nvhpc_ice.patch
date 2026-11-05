@@ -1,0 +1,61 @@
+commit eb9b7bef11ea50293f28a63de8d569dbf1fe9f0f
+Author: Jae-Mo Lihm <jaemolim96@gmail.com>
+Date:   Tue Oct 6 20:30:37 2026 -0400
+
+    work around two nvfortran 25.1 bugs at -O2 and above
+    
+    - disentangle.F90: index hmat with cuts(seg) directly instead of through
+      the temporary bb. With bb, the vectorizer in nvfortran 25.1 crashes
+      (ICE in gen_llvm_expr) on this loop of the recursive internal
+      procedure search.
+    - wannierise.F90: copy the m_matrix_loc block into cmtmp before passing
+      it to utility_zgemm. Passing the section m_matrix_loc(1:num_wann,
+      1:num_wann, nn, nkp_loc) of the assumed-shape array, next to a second
+      section argument in the same loop, makes nvfortran 25.1 free a
+      copy-in temporary it never allocated, so wannier90.x segfaults.
+    
+    Results are unchanged; cmtmp is not read again until the next
+    utility_zgemm overwrites it.
+
+diff --git a/src/disentangle.F90 b/src/disentangle.F90
+index 1853557e..72476072 100644
+--- a/src/disentangle.F90
++++ b/src/disentangle.F90
+@@ -4421,7 +4421,7 @@ contains
+       !! class below cut `level`. Objective = sum of between-class variance over
+       !! the class segments; strict > keeps the first ascending maximum.
+       integer, intent(in) :: level, lo
+-      integer :: idx, seg, aa, bb
++      integer :: idx, seg, aa
+       real(kind=dp) :: sigma
+ 
+       if (level <= ncut) then
+@@ -4433,8 +4433,7 @@ contains
+         sigma = 0.0_dp
+         aa = 0
+         do seg = 1, ncut
+-          bb = cuts(seg)
+-          sigma = sigma + hmat(aa, bb)
++          sigma = sigma + hmat(aa, cuts(seg))
+           aa = cuts(seg) + 1
+         end do
+         sigma = sigma + hmat(aa, nbins - 1)
+diff --git a/src/wannierise.F90 b/src/wannierise.F90
+index 47bba4b4..1efa9743 100644
+--- a/src/wannierise.F90
++++ b/src/wannierise.F90
+@@ -1667,12 +1667,8 @@ contains
+         do nn = 1, kmesh_info%nntot
+           nkp2 = kmesh_info%nnlist(nkp, nn)
+           ! tmp_cdq = cdq^{dagger} . M
+-
+-          ! note: m_matrix_loc is dimensioned larger than block copied here
+-          ! the striding used here likely incurs some overhead; ideally we should avoid it
+-          ! Jerome Jackson Jun 24
+-          call utility_zgemm(tmp_cdq, cdq(:, :, nkp), 'C', m_matrix_loc(1:num_wann, 1:num_wann, nn, nkp_loc), 'N', &
+-                             num_wann)
++          cmtmp(:, :) = m_matrix_loc(1:num_wann, 1:num_wann, nn, nkp_loc)
++          call utility_zgemm(tmp_cdq, cdq(:, :, nkp), 'C', cmtmp, 'N', num_wann)
+           ! cmtmp = tmp_cdq . cdq
+           call utility_zgemm(cmtmp, tmp_cdq, 'N', cdq(:, :, nkp2), 'N', num_wann)
+           ! note striding

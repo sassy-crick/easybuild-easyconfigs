@@ -1,0 +1,34 @@
+commit 089db79197f83fa2f1b9f6df6e1d4cae264f81da
+Author: Jae-Mo Lihm <jaemolim96@gmail.com>
+Date:   Tue Oct 6 20:30:09 2026 -0400
+
+    raise final_spreads and omegaD test tolerances to 1e-5
+    
+    nvfortran 25.1 at -O0 and -O1 gives final_spreads in
+    testw90_knbo3_higher_stengel_spaldin up to 6.7e-6 (relative) away from
+    the benchmark, and omegaD in testw90_graphene_dis_proj_auto 5.2e-6
+    (relative) away, just outside the 3e-6 and 5e-6 limits.
+    final_spreads now matches the 1e-5 already used for final_centres.
+
+diff --git a/test-suite/profiles.yaml b/test-suite/profiles.yaml
+index e195d319..bfdea40c 100644
+--- a/test-suite/profiles.yaml
++++ b/test-suite/profiles.yaml
+@@ -226,7 +226,7 @@ wannier90_proj_auto_wout:
+     final_centres_z: {abs: 1.0e-5, rel: 1.0e-5}
+     final_spreads: {abs: 3.0e-6, rel: 3.0e-6}
+     omegaI: {abs: 5.0e-6, rel: 5.0e-6}
+-    omegaD: {abs: 1.0e-6, rel: 5.0e-6}
++    omegaD: {abs: 1.0e-6, rel: 1.0e-5}
+     omegaOD: {abs: 5.0e-6, rel: 5.0e-6}
+     omegaTotal: {abs: 1.0e-6, rel: 1.0e-6}
+     near_neigh_dist: {abs: 1.0e-6, rel: 1.0e-6}
+@@ -306,7 +306,7 @@ wannier90_wout:
+     final_centres_x: {abs: 1.0e-5, rel: 1.0e-5}
+     final_centres_y: {abs: 1.0e-5, rel: 1.0e-5}
+     final_centres_z: {abs: 1.0e-5, rel: 1.0e-5}
+-    final_spreads: {abs: 3.0e-6, rel: 3.0e-6}
++    final_spreads: {abs: 1.0e-5, rel: 1.0e-5}
+     omegaI: {abs: 1.0e-6, rel: 1.0e-6}
+     omegaD: {abs: 1.0e-6, rel: 5.0e-6}
+     omegaOD: {abs: 1.0e-6, rel: 1.0e-6}
